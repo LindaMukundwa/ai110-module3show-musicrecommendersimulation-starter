@@ -60,7 +60,7 @@ score += 1 - |song.energy - user.target_energy|   # energy similarity (continuou
 
 The 2:1 genre-to-mood ratio reflects a deliberate design choice: genre defines the
 listening context (lofi vs. metal are completely different environments), while mood is
-a softer, more fluid preference — a "chill" listener might still enjoy a "focused" track
+a softer, more fluid preference a "chill" listener might still enjoy a "focused" track
 within the same genre.
 
 See [docs/data_flow.md](docs/data_flow.md) for a Mermaid diagram that visualizes the
@@ -73,7 +73,7 @@ and returns the top `k` as `(song, score, explanation)` tuples.
 
 ### Potential Biases
 
-- **Genre over-prioritization.** Genre is worth +2.0 — twice the mood bonus and
+- **Genre over-prioritization.** Genre is worth +2.0 twice the mood bonus and
   potentially more than the entire energy similarity range (0–1). A song that perfectly
   matches the user's energy and mood but differs in genre will be outranked by a weak
   genre match with poor energy fit. This means users may miss great cross-genre songs.
@@ -135,7 +135,7 @@ You can add more tests in `tests/test_recommender.py`.
 
 **Six listener profiles, three normal and three adversarial.**
 The system was tested against six distinct user preference dictionaries. The first
-three were realistic listener types — a daytime pop fan, a lofi study listener, and a
+three were realistic listener types a daytime pop fan, a lofi study listener, and a
 rock headbanger. The final three were designed to stress-test the scoring logic:
 
 - **Energy-Mood Conflict:** A user who asked for blues/sad music but set a very high
@@ -146,11 +146,11 @@ rock headbanger. The final three were designed to stress-test the scoring logic:
 
 - **Ghost Genre:** A user whose favorite genre (k-pop) does not exist in the catalog.
   No song ever earned the genre bonus. The listener's maximum reachable score was 2.0
-  out of 4.0 — half the ceiling available to a pop or lofi listener.
+  out of 4.0 half the ceiling available to a pop or lofi listener.
 
 - **Ignored Dimensions:** A user who specified precise acousticness, valence, and tempo
   preferences alongside a classical/peaceful profile. Autumn Sonata scored a perfect
-  4.0 — but the system never consulted any of the three extra fields. The high score
+  4.0 but the system never consulted any of the three extra fields. The high score
   created a false impression of accuracy.
 
 **Weight shift experiment.**
@@ -158,7 +158,7 @@ Genre weight was halved from +2.0 to +1.0 and energy was doubled from 0–1.0 to
 0–2.0, keeping the maximum score at 4.0. The most meaningful result: for the pop
 profile, Gym Hero (pop/intense) dropped from #2 to #4. Songs with the right mood but
 a different genre now had enough energy weight to outrank it, which felt more accurate.
-However, the adversarial energy-mood conflict case was only partially improved — Last
+However, the adversarial energy-mood conflict case was only partially improved Last
 Train South still ranked first, just with a narrower margin. The original weights were
 restored after the experiment.
 
@@ -166,8 +166,8 @@ restored after the experiment.
 
 ## Limitations and Risks
 
-- **The genre bonus is too powerful for a 20-song catalog.** Genre is worth +2.0 —
-  half the total score — but most genres have only one song. That single song wins its
+- **The genre bonus is too powerful for a 20-song catalog.** Genre is worth +2.0
+  half the total score but most genres have only one song. That single song wins its
   genre bonus automatically with no competition. This makes the genre bonus behave like
   a hard filter rather than a scoring factor.
 
@@ -181,7 +181,7 @@ restored after the experiment.
 
 - **The catalog encodes a stereotype.** Every low-energy song has a calm or sad mood.
   Every high-energy song has an intense or happy mood. A listener who wants to run to
-  sad music, or study to something upbeat, cannot be served — not because of a code
+  sad music, or study to something upbeat, cannot be served not because of a code
   bug, but because that combination does not exist in the data.
 
 - **No feedback loop.** The system treats every session identically. It cannot learn
