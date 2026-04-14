@@ -19,38 +19,74 @@ Real-world music recommenders like Spotify and YouTube combine two main strategi
 
 ### `Song` Features Used in Scoring
 
-Each song carries ten attributes from `data/songs.csv`, but only five are used in the score. The other two (`genre`, `danceability`) are stored on the object but carry zero weight, because genre labels are too coarse to reflect felt similarity and danceability is largely redundant with energy.
+Each song carries ten attributes from `data/songs.csv`. The current recipe uses three of them directly; the rest are stored on the object for potential future use.
 
 | Feature | Type | Role in scoring |
 |---|---|---|
-| `energy` | float 0–1 | Primary signal — weight 0.35 |
-| `acousticness` | float 0–1 | Primary signal — weight 0.30 |
-| `mood` | string | Categorical match — weight 0.20 |
-| `valence` | float 0–1 | Emotional tone support — weight 0.10 |
-| `tempo_bpm` | float (normalized) | Tiebreaker — weight 0.05 |
-| `genre` | string | Stored, not scored — weight 0.00 |
-| `danceability` | float 0–1 | Stored, not scored — weight 0.00 |
+| `genre` | string | Discrete bonus — **+2.0 pts** if it matches the user's `favorite_genre` |
+| `mood` | string | Discrete bonus — **+1.0 pt** if it matches the user's `preferred_mood` |
+| `energy` | float 0–1 | Continuous similarity — `1 − \|song.energy − target_energy\|`, adds 0.0–1.0 pts |
+| `acousticness` | float 0–1 | Stored, not scored in current recipe |
+| `valence` | float 0–1 | Stored, not scored in current recipe |
+| `tempo_bpm` | float | Stored, not scored in current recipe |
+| `danceability` | float 0–1 | Stored, not scored in current recipe |
 
 ### `UserProfile` Fields
 
-The user profile stores a preference value for each scored feature — not the user's favorite songs, but the target values the scoring rule measures closeness against.
-
 | Field | Type | What it represents |
 |---|---|---|
-| `target_energy` | float 0–1 | Preferred energy level (e.g. 0.35 for chill) |
-| `target_acousticness` | float 0–1 | Preferred acoustic texture (e.g. 0.80 for raw/unplugged) |
-| `preferred_mood` | string | Mood label to match (e.g. `"chill"`) |
-| `target_valence` | float 0–1 | Preferred emotional positivity (e.g. 0.60) |
-| `target_tempo` | float (normalized) | Preferred tempo, normalized to 0–1 |
-| `favorite_genre` | string | Stored for display, not used in scoring |
+| `favorite_genre` | string | Matched against `song.genre` — triggers the +2.0 genre bonus |
+| `preferred_mood` | string | Matched against `song.mood` — triggers the +1.0 mood bonus |
+| `target_energy` | float 0–1 | Preferred energy level used in the similarity calculation |
+| `target_acousticness` | float 0–1 | Stored, not used in current recipe |
+| `target_valence` | float 0–1 | Stored, not used in current recipe |
+| `target_tempo` | float (normalized) | Stored, not used in current recipe |
 
-### How a Score Is Computed
+### Algorithm Recipe
 
-For each numeric feature, the score is `1 - |user_target - song_value|`, which gives 1.0 for a perfect match and approaches 0.0 as the gap widens. Mood uses a binary match (1 if equal, 0 if not). The five feature scores are then multiplied by their weights and summed into a single float between 0 and 1.
+```
+score = 0.0
+
+if song.genre == user.favorite_genre:
+    score += 2.0                                   # genre bonus (discrete)
+
+if song.mood == user.preferred_mood:
+    score += 1.0                                   # mood bonus (discrete)
+
+score += 1 - |song.energy - user.target_energy|   # energy similarity (continuous, 0–1)
+```
+
+**Max possible score: 4.0** (genre match + mood match + perfect energy alignment).
+
+The 2:1 genre-to-mood ratio reflects a deliberate design choice: genre defines the
+listening context (lofi vs. metal are completely different environments), while mood is
+a softer, more fluid preference — a "chill" listener might still enjoy a "focused" track
+within the same genre.
+
+See [docs/data_flow.md](docs/data_flow.md) for a Mermaid diagram that visualizes the
+full pipeline from CSV to ranked output.
 
 ### How Songs Are Ranked
 
-All songs in the catalog are scored against the user profile. The ranking rule sorts them by score descending and returns the top `k`. Songs with equal scores are broken by higher valence.
+All songs in the catalog are scored. The ranking rule sorts them by score descending
+and returns the top `k` as `(song, score, explanation)` tuples.
+
+### Potential Biases
+
+- **Genre over-prioritization.** Genre is worth +2.0 — twice the mood bonus and
+  potentially more than the entire energy similarity range (0–1). A song that perfectly
+  matches the user's energy and mood but differs in genre will be outranked by a weak
+  genre match with poor energy fit. This means users may miss great cross-genre songs.
+
+- **Catalog representation bias.** The 20-song catalog is unevenly distributed across
+  genres: lofi has 3 entries while blues, gospel, and country each have only 1. Users
+  whose preferred genre is under-represented have fewer candidates to score highly,
+  making top results feel repetitive.
+
+- **Static taste profile.** The system has no memory. It cannot learn from listening
+  history or adapt when the user's mood changes. Every session treats the user as if
+  their preferences are fixed, which real recommenders avoid by blending in recent
+  play signals.
 
 ---
 
